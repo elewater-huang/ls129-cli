@@ -1,5 +1,8 @@
 # LS129CLI / VBA SDK V0.3 — LS129 RS485 / Modbus RTU 命令列讀取工具
 
+**DLL 完整操作與開發說明：** [LS129Core.dll 使用與開發手冊（繁體中文）](docs/LS129Core_DLL_Manual_zh-TW.md)。
+
+
 **目的：讓沒有安裝 Python、沒有 C/C++ 編譯器的 Windows 電腦，透過 COM Port 讀取林上 LS129。**
 
 使用電腦只需要 USB-RS485 驅動程式和這個 EXE、INI，不需要編譯器。
