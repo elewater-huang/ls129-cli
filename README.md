@@ -2,15 +2,10 @@
 
 **目的：讓沒有安裝 Python、沒有 C/C++ 編譯器的 Windows 電腦，透過 COM Port 讀取林上 LS129。**
 
-目前提供 **CLI、共用通訊核心、x86 DLL 與 VBA 範例**，不是已完成的實機認證產品。GitHub 編譯後，會產生 `LS129CLI.exe`，使用電腦只需要 USB-RS485 驅動程式和這個 EXE、INI，不需要編譯器。
+使用電腦只需要 USB-RS485 驅動程式和這個 EXE、INI，不需要編譯器。
 
-## 第一次使用 — 只需要 5 個步驟
-
-1. 在 GitHub 建立一個新的 repository，例如 `ls129-cli`。
-2. 將這個 ZIP 解壓縮後，**保留 `.github/workflows/build.yml` 目錄結構**，把所有檔案上傳到 repository 根目錄。請不要只上傳 ZIP 本身。
-3. 在 GitHub 開啟 **Actions → Build LS129CLI x86 → Run workflow**（如上傳時已自動觸發 push，則可以直接觀看執行結果）。
-4. 成功後在該次 Actions 執行頁的 **Artifacts** 下載 `LS129CLI-SDK-x86-V0.3`，解壓縮取得 `LS129CLI.exe`、`LS129Core.dll`、`M_LS129.bas`、`LS129.ini`、`README_VBA.md` 和 `RUN_FIRST.bat`。
-5. 編輯 INI 中 `port=COM3`，改為裝置管理員實際的 COM Port，接上 LS129；在 CMD 中執行 `LS129CLI.exe selftest`，再執行 `LS129CLI.exe read`。你也可以直接執行 `RUN_FIRST.bat`，依序進行自我測試和實機讀取。
+下載 `LS129CLI-SDK-x86-V0.3`，解壓縮取得 `LS129CLI.exe`、`LS129Core.dll`、`M_LS129.bas`、`LS129.ini`、`README_VBA.md` 和 `RUN_FIRST.bat`。
+編輯 INI 中 `port=COM3`，改為裝置管理員實際的 COM Port，接上 LS129；在 CMD 中執行 `LS129CLI.exe selftest`，再執行 `LS129CLI.exe read`。你也可以直接執行 `RUN_FIRST.bat`，依序進行自我測試和實機讀取。
 
 ## 指令範例
 
