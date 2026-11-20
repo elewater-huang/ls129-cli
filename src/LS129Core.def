@@ -1,0 +1,10 @@
+LIBRARY LS129Core
+EXPORTS
+    LS129_Open=_LS129_Open@8
+    LS129_Read=_LS129_Read@12
+    LS129_ReadAll=_LS129_ReadAll@20
+    LS129_Reset=_LS129_Reset@4
+    LS129_GetSmoothing=_LS129_GetSmoothing@8
+    LS129_SetSmoothing=_LS129_SetSmoothing@8
+    LS129_Close=_LS129_Close@4
+    LS129_APIVersion=_LS129_APIVersion@0
