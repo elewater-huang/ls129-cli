@@ -1,4 +1,4 @@
-name: Build LS129CLI x86
+name: Build LS129CLI x86 and VBA SDK
 on:
   push:
   workflow_dispatch:
@@ -18,21 +18,33 @@ jobs:
     needs: unit-tests
     steps:
       - uses: actions/checkout@v4
-      - name: Compile 32-bit Windows CLI with static C runtime
+      - name: Build 32-bit CLI, DLL and test native DLL exports
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x86 -host_arch=x64
           if errorlevel 1 exit /b 1
           if not exist dist mkdir dist
-          cl /nologo /W4 /O2 /MT /TC /DWINVER=0x0601 /D_WIN32_WINNT=0x0601 /Fe:dist\LS129CLI.exe src\main.c src\protocol.c
+          cl /nologo /W4 /O2 /MT /TC /DWINVER=0x0601 /D_WIN32_WINNT=0x0601 /Fe:dist\LS129CLI.exe src\main.c src\device.c src\protocol.c
           if errorlevel 1 exit /b 1
-          copy /Y LS129.ini dist\LS129.ini
-          copy /Y RUN_FIRST.bat dist\RUN_FIRST.bat
+          cl /nologo /W4 /O2 /MT /LD /TC /DWINVER=0x0601 /D_WIN32_WINNT=0x0601 /Fe:dist\LS129Core.dll src\ls129_dll.c src\device.c src\protocol.c /link /DEF:src\LS129Core.def
+          if errorlevel 1 exit /b 1
+          cl /nologo /W4 /O2 /MT /TC /DWINVER=0x0601 /D_WIN32_WINNT=0x0601 /Fe:dll_load_test.exe tests\dll_load_test.c
+          if errorlevel 1 exit /b 1
           dist\LS129CLI.exe selftest
           if errorlevel 1 exit /b 1
-      - name: Upload compiled executable and configuration
+          pushd dist
+          ..\dll_load_test.exe
+          if errorlevel 1 exit /b 1
+          popd
+          copy /Y LS129.ini dist\LS129.ini
+          copy /Y RUN_FIRST.bat dist\RUN_FIRST.bat
+          copy /Y vba\M_LS129.bas dist\M_LS129.bas
+          copy /Y vba\README_VBA.md dist\README_VBA.md
+          dumpbin /headers dist\LS129Core.dll | findstr /C:"machine (x86)"
+          if errorlevel 1 exit /b 1
+      - name: Upload Windows x86 CLI, DLL and VBA module
         uses: actions/upload-artifact@v4
         with:
-          name: LS129CLI-x86-V0.2
+          name: LS129CLI-SDK-x86-V0.3
           path: dist/*
           if-no-files-found: error
