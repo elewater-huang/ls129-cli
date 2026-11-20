@@ -1,0 +1,38 @@
+name: Build LS129CLI x86
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Protocol CRC and decoding tests
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O2 src/protocol.c tests/protocol_test.c -o protocol_test
+          ./protocol_test
+
+  build-windows-x86:
+    runs-on: windows-2022
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile 32-bit Windows CLI with static C runtime
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x86 -host_arch=x64
+          if errorlevel 1 exit /b 1
+          if not exist dist mkdir dist
+          cl /nologo /W4 /O2 /MT /TC /DWINVER=0x0601 /D_WIN32_WINNT=0x0601 /Fe:dist\LS129CLI.exe src\main.c src\protocol.c
+          if errorlevel 1 exit /b 1
+          copy /Y LS129.ini dist\LS129.ini
+          copy /Y RUN_FIRST.bat dist\RUN_FIRST.bat
+          dist\LS129CLI.exe selftest
+          if errorlevel 1 exit /b 1
+      - name: Upload compiled executable and configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: LS129CLI-x86-V0.1
+          path: dist/*
+          if-no-files-found: error
