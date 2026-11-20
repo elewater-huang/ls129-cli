@@ -373,15 +373,24 @@ int main(int argc, char **argv)
         }
         return 0;
     }
-    fp = fopen(output_file, "wb");
+    /* Preflight output without truncating an earlier CSV.
+     * An unsuccessful recount must never overwrite previous results.
+     */
+    fp = fopen(output_file, "ab");
     if (fp == NULL) {
-        fprintf(stderr, "Cannot create file: %s\n", output_file);
+        fprintf(stderr, "Cannot create/open output file: %s\n", output_file);
         CloseHandle(h); return 5;
     }
+    fclose(fp);
     status = reset_recount(h, &cfg);
     if (status) {
-        fprintf(stderr, "Record ABORTED: recount failed (%d); no samples written.\n", status);
-        fclose(fp); CloseHandle(h); return 6;
+        fprintf(stderr, "Record ABORTED: recount failed (%d); old CSV preserved.\n", status);
+        CloseHandle(h); return 6;
+    }
+    fp = fopen(output_file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "Cannot create output after recount: %s\n", output_file);
+        CloseHandle(h); return 5;
     }
     puts("Recount acknowledged: new energy/maximum measurement period started.");
     fputs("timestamp_local,station,raw_irradiance,corrected_irradiance,raw_maximum,raw_energy\r\n", fp);
