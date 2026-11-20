@@ -1,0 +1,17 @@
+LS129CLI V0.1 快速開始
+======================
+1. 解壓縮本資料夾。
+2. GitHub 建立新的 ls129-cli repository。
+3. 上傳解壓縮後全部檔案，含隱藏 .github/workflows/build.yml。
+4. GitHub Actions -> Build LS129CLI x86 -> Run workflow。
+5. 成功後下載 Artifacts 的 LS129CLI-x86-V0.1。
+6. 修改 LS129.ini 的 COM Port，雙擊 CMD，執行：
+
+   LS129CLI.exe selftest
+   LS129CLI.exe read
+   LS129CLI.exe status
+   LS129CLI.exe record --count 100 --out data.csv
+
+重要：這個 ZIP 是原始碼，不含已編譯的 EXE。
+      EXE 由 GitHub Actions 產生；不需本機編譯器。
+      實機尚未測試，Windows 7 相容性需確認。
