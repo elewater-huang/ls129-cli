@@ -9,7 +9,7 @@
 1. 在 GitHub 建立一個新的 repository，例如 `ls129-cli`。
 2. 將這個 ZIP 解壓縮後，**保留 `.github/workflows/build.yml` 目錄結構**，把所有檔案上傳到 repository 根目錄。請不要只上傳 ZIP 本身。
 3. 在 GitHub 開啟 **Actions → Build LS129CLI x86 → Run workflow**（如上傳時已自動觸發 push，則可以直接觀看執行結果）。
-4. 成功後在該次 Actions 執行頁的 **Artifacts** 下載 `LS129CLI-x86-V0.1`，解壓縮取得 `LS129CLI.exe`、`LS129.ini` 和 `RUN_FIRST.bat`。
+4. 成功後在該次 Actions 執行頁的 **Artifacts** 下載 `LS129CLI-x86-V0.2`，解壓縮取得 `LS129CLI.exe`、`LS129.ini` 和 `RUN_FIRST.bat`。
 5. 編輯 INI 中 `port=COM3`，改為裝置管理員實際的 COM Port，接上 LS129；在 CMD 中執行 `LS129CLI.exe selftest`，再執行 `LS129CLI.exe read`。你也可以直接執行 `RUN_FIRST.bat`，依序進行自我測試和實機讀取。
 
 ## 指令範例
