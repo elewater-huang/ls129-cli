@@ -1,15 +1,15 @@
-# LS129CLI V0.2 — LS129 RS485 / Modbus RTU 命令列讀取工具
+# LS129CLI / VBA SDK V0.3 — LS129 RS485 / Modbus RTU 命令列讀取工具
 
 **目的：讓沒有安裝 Python、沒有 C/C++ 編譯器的 Windows 電腦，透過 COM Port 讀取林上 LS129。**
 
-目前是**第一版原始碼與 GitHub Actions 自動編譯配置**，不是已完成的實機認證產品。GitHub 編譯後，會產生 `LS129CLI.exe`，使用電腦只需要 USB-RS485 驅動程式和這個 EXE、INI，不需要編譯器。
+目前提供 **CLI、共用通訊核心、x86 DLL 與 VBA 範例**，不是已完成的實機認證產品。GitHub 編譯後，會產生 `LS129CLI.exe`，使用電腦只需要 USB-RS485 驅動程式和這個 EXE、INI，不需要編譯器。
 
 ## 第一次使用 — 只需要 5 個步驟
 
 1. 在 GitHub 建立一個新的 repository，例如 `ls129-cli`。
 2. 將這個 ZIP 解壓縮後，**保留 `.github/workflows/build.yml` 目錄結構**，把所有檔案上傳到 repository 根目錄。請不要只上傳 ZIP 本身。
 3. 在 GitHub 開啟 **Actions → Build LS129CLI x86 → Run workflow**（如上傳時已自動觸發 push，則可以直接觀看執行結果）。
-4. 成功後在該次 Actions 執行頁的 **Artifacts** 下載 `LS129CLI-x86-V0.2`，解壓縮取得 `LS129CLI.exe`、`LS129.ini` 和 `RUN_FIRST.bat`。
+4. 成功後在該次 Actions 執行頁的 **Artifacts** 下載 `LS129CLI-SDK-x86-V0.3`，解壓縮取得 `LS129CLI.exe`、`LS129Core.dll`、`M_LS129.bas`、`LS129.ini`、`README_VBA.md` 和 `RUN_FIRST.bat`。
 5. 編輯 INI 中 `port=COM3`，改為裝置管理員實際的 COM Port，接上 LS129；在 CMD 中執行 `LS129CLI.exe selftest`，再執行 `LS129CLI.exe read`。你也可以直接執行 `RUN_FIRST.bat`，依序進行自我測試和實機讀取。
 
 ## 指令範例
@@ -18,6 +18,7 @@
 LS129CLI.exe selftest
 LS129CLI.exe read
 LS129CLI.exe status
+LS129CLI.exe reset
 LS129CLI.exe reset
 LS129CLI.exe record --count 100 --out data.csv
 LS129CLI.exe read --port COM4 --station 1 --baud 9600
@@ -39,7 +40,7 @@ LS129CLI.exe record --count 40 --hz 0.2 --out test.csv
 - `read failed (-3)`：回應的 CRC 不符合，應檢查雜訊、接線與串列埠設定。
 - `Record ABORTED: recount failed`：LS129 沒有確認重新統計，記錄被取消，CSV 不會產生任何資料列；請檢查串列埠設定及 Modbus 回應。
 - 若測試失敗，先用 AccessPort 比較原本已經成功的封包；不要急著修改探頭內部站號或波特率。
-- 本版本尚無 DLL、VBA 模組或通用 `set` 指令，只有重新統計所需的寫入功能；先驗證 CMD 通訊，再做 SDK 第 2 階段。
+- 本版本有 Windows 32-bit 原生 DLL 和 VBA 模組，但 CLI 不提供一般 `set` 指令；DLL 的平滑設定必須由呼叫者明確執行。
 
 ## 系統與相容性
 
@@ -53,6 +54,20 @@ LS129CLI.exe record --count 40 --hz 0.2 --out test.csv
 林上官方文件：《LS129 Digital Probe Communication Protocol (Customer) V3.2》：
 https://images.linshangtech.com/user-manual/LS129_Communication_Protocol_V3.2.pdf
 
+## DLL 與 Excel / Access VBA
+
+V0.3 新增 `LS129Core.dll` 和 `M_LS129.bas`，兩者可放在 MDB/XLS 專案同一資料夾。
+依 `vba/README_VBA.md` 的範例在 Access 2003 用 `CurrentProject.Path`、
+在 Excel 用 `ThisWorkbook.Path` 呼叫。
+
+核心 API：開啟、讀取、讀全部、重新統計、讀/設定平滑模式、關閉。
+DLL 預設不清零；一次新的量測要明確呼叫 `LS129_NewPeriod()`。
+儀器平滑設定 0=無、1=50Hz、2=60Hz，寫入後會讀回驗證。
+站號、波特率寫入尚未開放，避免產線錯誤設定造成失聯。
+C 通訊核心在 `src/device.c`，CLI/DLL 共用。
+
 ## 下一階段
 
-CLI 與實機通訊驗證後，建立共用核心 DLL（Win32 x86）、VBA `Declare` 介面，以及保護性參數寫入（平滑 50/60Hz、站號、波特率），寫入前後均做確認與讀回驗證。校正因子維持 PC 端處理。
+在 Win7 x86 與 Access2003 / Excel2003 實機測試 DLL 和 VBA；
+再加入站號、波特率寫入的安全保護與失聯救援機制。
+校正因子始終維持 PC 端處理。
