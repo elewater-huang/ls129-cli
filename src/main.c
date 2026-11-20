@@ -1,5 +1,5 @@
 /* LS129CLI V0.1 - Win32 native COM port reader, no Python runtime.
- * Windows 7 target, x86 build. Read-only by design for first release.
+ * Windows 7 target, x86 build. Record auto-recounts energy and peak.
  */
 #define WINVER 0x0601
 #define _WIN32_WINNT 0x0601
@@ -27,15 +27,16 @@ typedef struct {
 
 static void usage(void)
 {
-    puts("LS129CLI V0.1 (read-only; Modbus RTU)");
+    puts("LS129CLI V0.2 (record auto-recounts; Modbus RTU)");
     puts("  LS129CLI.exe read");
     puts("  LS129CLI.exe status");
+    puts("  LS129CLI.exe reset (recount energy and maximum)");
     puts("  LS129CLI.exe record --count 100 --out data.csv");
     puts("  LS129CLI.exe read --port COM4 --station 1 --baud 9600");
     puts("  LS129CLI.exe read --config C:\\path\\LS129.ini");
     puts("  LS129CLI.exe selftest (no probe required)");
     puts("Options: --port, --station, --baud, --hz, --count, --out, --config");
-    puts("Reads raw integer values from LS129 registers 201..204.");
+    puts("Reads integers 201..204; record resets statistics via register 50.");
 }
 
 static int find_default_ini(char *path, DWORD capacity)
@@ -139,7 +140,12 @@ static int do_selftest(void)
     static const uint8_t reply[13] = {1, 3, 8, 0, 0x15, 0, 0x1D,
                                       0, 0, 0x0A, 0xAB, 0x7A, 0x0B};
     LS129Measurement m;
-    if (ls129_build_read_request(1, req) != 0 || memcmp(req, expected, 8) ||
+    static const uint8_t expected_reset[8] = {1, 6, 0, 0x32, 0, 1, 0xE9, 0xC5};
+    uint8_t reset_req[8];
+    if (ls129_build_recount_request(1, reset_req) != 0 ||
+        memcmp(reset_req, expected_reset, 8) != 0 ||
+        ls129_validate_recount_response(1, expected_reset, 8) != 0 ||
+        ls129_build_read_request(1, req) != 0 || memcmp(req, expected, 8) ||
         ls129_decode_measurement(1, reply, 13, &m) != 0 ||
         m.irradiance != 21 || m.maximum != 29 || m.energy != 2731u) {
         fputs("SELFTEST FAIL\n", stderr);
@@ -229,6 +235,32 @@ static int get_measurement(HANDLE h, const Config *cfg, LS129Measurement *value)
     return ls129_decode_measurement(cfg->station, response, sizeof(response), value);
 }
 
+/* Recount on the configured station; require a valid function 06 echo. */
+static int reset_recount(HANDLE h, const Config *cfg)
+{
+    uint8_t request[8];
+    uint8_t reply[8];
+    DWORD sent = 0;
+    int status;
+    if (ls129_build_recount_request(cfg->station, request) != 0) return -10;
+    if (!PurgeComm(h, PURGE_RXCLEAR)) return -11;
+    if (!WriteFile(h, request, sizeof(request), &sent, NULL) ||
+        sent != sizeof(request)) return -12;
+    if (!FlushFileBuffers(h)) return -13;
+    status = read_exact(h, reply, 2, cfg->timeout_ms);
+    if (status) return -20;
+    if (reply[0] != cfg->station) return -21;
+    if (reply[1] == 0x86) {
+        status = read_exact(h, reply + 2, 3, cfg->timeout_ms);
+        if (status) return -22;
+        return ls129_validate_recount_response(cfg->station, reply, 5);
+    }
+    if (reply[1] != 0x06) return -23;
+    status = read_exact(h, reply + 2, 6, cfg->timeout_ms);
+    if (status) return -24;
+    return ls129_validate_recount_response(cfg->station, reply, sizeof(reply));
+}
+
 static double corrected(const Config *cfg, uint16_t raw)
 {
     return (double)raw * (cfg->calibration_enabled ? cfg->factor : 1.0);
@@ -267,7 +299,8 @@ int main(int argc, char **argv)
     }
     mode = argv[1];
     if (!strcmp(mode, "selftest")) return do_selftest();
-    if (strcmp(mode, "read") && strcmp(mode, "status") && strcmp(mode, "record")) {
+    if (strcmp(mode, "read") && strcmp(mode, "status") &&
+        strcmp(mode, "record") && strcmp(mode, "reset")) {
         usage(); return 2;
     }
     if (!find_default_ini(ini, sizeof(ini))) { fputs("Cannot locate application folder\n", stderr); return 2; }
@@ -312,6 +345,16 @@ int main(int argc, char **argv)
                 cfg.port, (unsigned long)GetLastError());
         return 3;
     }
+    if (!strcmp(mode, "reset")) {
+        status = reset_recount(h, &cfg);
+        CloseHandle(h);
+        if (status) {
+            fprintf(stderr, "LS129 recount failed (%d); reset not acknowledged.\n", status);
+            return 6;
+        }
+        puts("Recount acknowledged: energy and maximum restarted on LS129.");
+        return 0;
+    }
     if (!strcmp(mode, "read") || !strcmp(mode, "status")) {
         status = get_measurement(h, &cfg, &m);
         CloseHandle(h);
@@ -335,6 +378,12 @@ int main(int argc, char **argv)
         fprintf(stderr, "Cannot create file: %s\n", output_file);
         CloseHandle(h); return 5;
     }
+    status = reset_recount(h, &cfg);
+    if (status) {
+        fprintf(stderr, "Record ABORTED: recount failed (%d); no samples written.\n", status);
+        fclose(fp); CloseHandle(h); return 6;
+    }
+    puts("Recount acknowledged: new energy/maximum measurement period started.");
     fputs("timestamp_local,station,raw_irradiance,corrected_irradiance,raw_maximum,raw_energy\r\n", fp);
     for (i = 0; (unsigned long)i < count; ++i) {
         DWORD started = GetTickCount();
