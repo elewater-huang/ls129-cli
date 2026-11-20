@@ -1,4 +1,4 @@
-# LS129CLI V0.1 — LS129 RS485 / Modbus RTU 命令列讀取工具
+# LS129CLI V0.2 — LS129 RS485 / Modbus RTU 命令列讀取工具
 
 **目的：讓沒有安裝 Python、沒有 C/C++ 編譯器的 Windows 電腦，透過 COM Port 讀取林上 LS129。**
 
@@ -18,26 +18,28 @@
 LS129CLI.exe selftest
 LS129CLI.exe read
 LS129CLI.exe status
+LS129CLI.exe reset
 LS129CLI.exe record --count 100 --out data.csv
 LS129CLI.exe read --port COM4 --station 1 --baud 9600
 LS129CLI.exe record --count 40 --hz 0.2 --out test.csv
 ```
 
-`read`：只輸出一個無單位的原始整數，適合讓其他 BAT 或 VBA 擷取。`status`：顯示原始即時值、最大值、能量與 PC 端修正值。`record`：依照 PC 輪詢頻率輸出 CSV；**不要把重複讀值視為儀器內部產生的新量測**。`selftest`：只測試 CRC 與解碼，不需要探頭，不能當作實機通訊成功的證據。
+`read`：只輸出一個無單位的原始整數，適合讓其他 BAT 或 VBA 擷取。`status`：顯示原始即時值、最大值、能量與 PC 端修正值。`record`：每次開始記錄前，會先用 Modbus 06H 向選定站號的暫存器 **50 寫入 1**，要求探頭重新統計累積能量及最大值。**必須收到正確回應才開始寫入 CSV**；失敗就終止，不寫入量測資料列。這是真正重設 LS129 內部統計，不是從 CSV 數值扣除舊值。`reset` 可獨立執行重新統計；`read`、`status` 不會清除統計。若 UV 燈持續照射，重設後能量立刻再次累積，因此第一筆不一定剛好為 0。記錄依照 PC 輪詢頻率輸出 CSV；**不要把重複讀值視為儀器內部產生的新量測**。`selftest`：只測試 CRC 與解碼，不需要探頭，不能當作實機通訊成功的證據。
 
 ### 設定檔
 
 `LS129.ini` 放在 EXE **同一目錄**。`poll_hz` 可使用 0.2、1、5、32 等正數，最高 32；此參數只控制 PC 發送讀取命令的頻率，不改寫 LS129 的實際取樣頻率。PC 端校正係數由 `calibration.enabled` 和 `calibration.factor` 管理，**絕不寫入探頭**。
 
-第一版僅支援讀取暫存器 **201–204**（03H）。讀取指令在站號 1 時為 `01 03 00 C9 00 04 94 37`。這是**整數格式**；單位必須依探頭型號與原始資料確認，勿直接假設所有型號都採相同物理單位。如果想保留小數，可以在下一版使用相應的 Float 暫存器。
+讀值支援暫存器 **201–204**（03H）；`record`/`reset` 支援以 **06H 寫入暫存器 50 = 1**。不會修改通訊站號、波特率、平滑設定或校正係數。讀取指令在站號 1 時為 `01 03 00 C9 00 04 94 37`。這是**整數格式**；單位必須依探頭型號與原始資料確認，勿直接假設所有型號都採相同物理單位。如果想保留小數，可以在下一版使用相應的 Float 暫存器。
 
 ## 常見問題
 
 - `Cannot open/configure COMx`：檢查 USB-RS485 驅動、COM Port、是否被 AccessPort 或 Python 軟體佔用。不可同時讓兩個程式操作同一個 COM Port。
 - `read failed (-20)`：沒有收到足夠的回應；檢查站號、波特率、供電、A/B 線與 USB-RS485 轉換器的收發方向控制。
 - `read failed (-3)`：回應的 CRC 不符合，應檢查雜訊、接線與串列埠設定。
+- `Record ABORTED: recount failed`：LS129 沒有確認重新統計，記錄被取消，CSV 不會產生任何資料列；請檢查串列埠設定及 Modbus 回應。
 - 若測試失敗，先用 AccessPort 比較原本已經成功的封包；不要急著修改探頭內部站號或波特率。
-- 本版本尚無 DLL、VBA 模組或 `set` 指令；先驗證 CMD 通訊，再做 SDK 第 2 階段。
+- 本版本尚無 DLL、VBA 模組或通用 `set` 指令，只有重新統計所需的寫入功能；先驗證 CMD 通訊，再做 SDK 第 2 階段。
 
 ## 系統與相容性
 
